@@ -138,6 +138,7 @@ def venues():
   #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
   locations = db.session.query(distinct(Venue.city), Venue.state).all()
   current_time = datetime.now()
+  data = []
   for location in locations:
       city = location[0]
       state = location[1]
@@ -156,8 +157,6 @@ def venues():
             "state": state,
             "venues": venues
         }
-      # flash(location)
-      data = []
       data.append(location_data)
       # flash(data)
 
@@ -168,14 +167,30 @@ def search_venues():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+  search_term = request.form.get('search-term', '')
+  artists = Venue.query.filter(func.lower(Venue.name).ilike(f'%{search_term}%')).all()
+  current_time = datetime.now()
+  data = []
+  for artist in artists:
+    upcoming = Show.query.filter(Show.venue_id == artist.id).filter(Show.start_time > current_time).all()
+    data.append({
+      'id': artist.id,
+      'name': artist.name,
+      'num_upcoming_shows': len(upcoming)
+    })
   response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
+    "count": len(artists),
+    "data": data
   }
+  
+  # response={
+  #   "count": 1,
+  #   "data": [{
+  #     "id": 2,
+  #     "name": "The Dueling Pianos Bar",
+  #     "num_upcoming_shows": 0,
+  #   }]
+  # }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/venues/<int:venue_id>')
@@ -325,16 +340,15 @@ def search_artists():
   # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
   # search for "band" should return "The Wild Sax Band".
   search_term = request.form.get('search-term', '')
-  # search = "%{}%".format(search_term)
-  fields = ["id", "name"]
-  artists = Artist.query.filter(func.lower(Artist.name).ilike(f'%{search_term}%')).options(load_only(*fields)).all()
-  num_upcoming_shows = 0
+  artists = Artist.query.filter(func.lower(Artist.name).ilike(f'%{search_term}%')).all()
+  current_time = datetime.now()
   data = []
   for artist in artists:
+    upcoming = Show.query.filter(Show.artist_id == artist.id).filter(Show.start_time > current_time).all()
     data.append({
       'id': artist.id,
       'name': artist.name,
-      'num_upcoming_shows': num_upcoming_shows
+      'num_upcoming_shows': len(upcoming)
     })
   response={
     "count": len(artists),
